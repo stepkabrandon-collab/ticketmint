@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.yarn/
+
+# Next.js
+.next/
+out/
+.seed-build/
+
+# Anchor build artifacts
+target/
+.anchor/
+
+# Environment — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# Solana keypairs — NEVER commit private keys
+platform-keypair.json
+*.keypair.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

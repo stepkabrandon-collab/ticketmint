@@ -1,0 +1,117 @@
+{
+  "version": "0.1.0",
+  "name": "ticket_mint_marketplace",
+  "instructions": [
+    {
+      "name": "listTicket",
+      "accounts": [
+        { "name": "seller",             "isMut": true,  "isSigner": true  },
+        { "name": "mint",               "isMut": false, "isSigner": false },
+        { "name": "sellerTokenAccount", "isMut": true,  "isSigner": false },
+        { "name": "listing",            "isMut": true,  "isSigner": false },
+        { "name": "escrowTokenAccount", "isMut": true,  "isSigner": false },
+        { "name": "tokenProgram",       "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram",      "isMut": false, "isSigner": false },
+        { "name": "rent",               "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "priceLamports",    "type": "u64"    },
+        { "name": "royaltyRecipient", "type": "publicKey" }
+      ]
+    },
+    {
+      "name": "buyTicket",
+      "accounts": [
+        { "name": "buyer",              "isMut": true,  "isSigner": true  },
+        { "name": "seller",             "isMut": true,  "isSigner": false },
+        { "name": "platformFeeWallet",  "isMut": true,  "isSigner": false },
+        { "name": "royaltyRecipient",   "isMut": true,  "isSigner": false },
+        { "name": "mint",               "isMut": false, "isSigner": false },
+        { "name": "listing",            "isMut": true,  "isSigner": false },
+        { "name": "escrowTokenAccount", "isMut": true,  "isSigner": false },
+        { "name": "buyerTokenAccount",  "isMut": true,  "isSigner": false },
+        { "name": "tokenProgram",       "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram",      "isMut": false, "isSigner": false },
+        { "name": "rent",               "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelListing",
+      "accounts": [
+        { "name": "seller",             "isMut": true,  "isSigner": true  },
+        { "name": "mint",               "isMut": false, "isSigner": false },
+        { "name": "listing",            "isMut": true,  "isSigner": false },
+        { "name": "escrowTokenAccount", "isMut": true,  "isSigner": false },
+        { "name": "sellerTokenAccount", "isMut": true,  "isSigner": false },
+        { "name": "tokenProgram",       "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram",      "isMut": false, "isSigner": false },
+        { "name": "rent",               "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "listingAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "seller",           "type": "publicKey" },
+          { "name": "mint",             "type": "publicKey" },
+          { "name": "priceLamports",    "type": "u64"       },
+          { "name": "royaltyRecipient", "type": "publicKey" },
+          { "name": "listedAt",         "type": "i64"       },
+          { "name": "bump",             "type": "u8"        },
+          { "name": "escrowBump",       "type": "u8"        }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "TicketListed",
+      "fields": [
+        { "name": "listing",       "type": "publicKey", "index": false },
+        { "name": "seller",        "type": "publicKey", "index": false },
+        { "name": "mint",          "type": "publicKey", "index": false },
+        { "name": "priceLamports", "type": "u64",       "index": false }
+      ]
+    },
+    {
+      "name": "TicketSold",
+      "fields": [
+        { "name": "listing",       "type": "publicKey", "index": false },
+        { "name": "buyer",         "type": "publicKey", "index": false },
+        { "name": "seller",        "type": "publicKey", "index": false },
+        { "name": "mint",          "type": "publicKey", "index": false },
+        { "name": "priceLamports", "type": "u64",       "index": false },
+        { "name": "platformFee",   "type": "u64",       "index": false },
+        { "name": "royaltyFee",    "type": "u64",       "index": false },
+        { "name": "sellerNet",     "type": "u64",       "index": false }
+      ]
+    },
+    {
+      "name": "ListingCancelled",
+      "fields": [
+        { "name": "listing", "type": "publicKey", "index": false },
+        { "name": "seller",  "type": "publicKey", "index": false },
+        { "name": "mint",    "type": "publicKey", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidPrice",             "msg": "Price must be greater than zero" },
+    { "code": 6001, "name": "ArithmeticOverflow",        "msg": "Arithmetic overflow in fee calculation" },
+    { "code": 6002, "name": "InvalidSeller",             "msg": "Seller account does not match listing" },
+    { "code": 6003, "name": "InvalidFeeWallet",          "msg": "Platform fee wallet does not match expected address" },
+    { "code": 6004, "name": "InvalidRoyaltyRecipient",   "msg": "Royalty recipient does not match listing" },
+    { "code": 6005, "name": "Unauthorized",              "msg": "Signer is not authorized for this action" }
+  ],
+  "metadata": {
+    "address": "TMktXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  }
+}

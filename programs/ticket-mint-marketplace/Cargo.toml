@@ -1,0 +1,22 @@
+[package]
+name = "ticket-mint-marketplace"
+version = "0.1.0"
+description = "Ticket Mint — on-chain secondary ticket marketplace with Metaplex NFT escrow"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "ticket_mint_marketplace"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.30.1", features = ["token", "associated_token", "metadata"] }
+spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
+mpl-token-metadata = { version = "4.1.2", features = ["no-entrypoint"] }
