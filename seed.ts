@@ -29,7 +29,7 @@ const EVENTS = [
     name:        "Taylor Swift — The Eras Tour",
     venue:       "SoFi Stadium",
     city:        "Los Angeles, CA",
-    event_date:  "2026-08-15T20:00:00Z",
+    event_date:  "2026-06-15T20:00:00Z",
     image_url:   null,
     description: "Taylor Swift's record-breaking Eras Tour. All albums. One night.",
   },
@@ -45,7 +45,7 @@ const EVENTS = [
     name:        "NBA Finals Game 7",
     venue:       "Chase Center",
     city:        "San Francisco, CA",
-    event_date:  "2026-06-22T20:30:00Z",
+    event_date:  "2026-07-22T20:30:00Z",
     image_url:   null,
     description: "The ultimate Game 7 experience. History in the making.",
   },
@@ -92,23 +92,16 @@ async function main() {
   // ── 1. Seed events ────────────────────────────────────────
   console.log("\n📅 Seeding events…");
 
-  // Fetch existing events by name to skip duplicates without relying on
-  // ON CONFLICT (which requires a unique constraint that may not exist yet).
+  // Upsert events by name — updates dates on existing events, inserts new ones.
+  // Requires the unique constraint on events.name (present in schema.sql).
   const eventNames = EVENTS.map((e) => e.name);
-  const { data: existingEvents } = await supabase
+  const { error: eventsError } = await supabase
     .from("events")
-    .select("name")
-    .in("name", eventNames);
+    .upsert(EVENTS, { onConflict: "name" });
 
-  const existingNames = new Set((existingEvents ?? []).map((e: any) => e.name));
-  const newEvents = EVENTS.filter((e) => !existingNames.has(e.name));
-
-  if (newEvents.length > 0) {
-    const { error: eventsError } = await supabase.from("events").insert(newEvents);
-    if (eventsError) {
-      console.error("❌ Events insert failed:", eventsError.message);
-      process.exit(1);
-    }
+  if (eventsError) {
+    console.error("❌ Events upsert failed:", eventsError.message);
+    process.exit(1);
   }
 
   // Fetch all seeded events (existing + newly inserted) for ticket creation
@@ -122,7 +115,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`✅ Events ready: ${insertedEvents?.length ?? 0} (${newEvents.length} newly inserted)`);
+  console.log(`✅ Events upserted: ${insertedEvents?.length ?? 0}`);
 
   // ── 2. Seed demo tickets ──────────────────────────────────
   console.log("\n🎟️  Seeding demo tickets…");

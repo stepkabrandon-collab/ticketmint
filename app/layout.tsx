@@ -58,39 +58,108 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 // ── Footer ────────────────────────────────────────────────────
 function Footer() {
+  const year = new Date().getFullYear();
   return (
-    <footer className="bg-white border-t border-[#E2E8F0] mt-16 py-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-          {/* Brand */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-[#E8315A] rounded-md flex items-center justify-center">
-              <span className="text-white text-sm">🎟</span>
+    <footer className="mt-16" style={{ background: "#0F172A" }}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-14 pb-8">
+        {/* Main grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-12">
+          {/* Brand column */}
+          <div className="col-span-2 sm:col-span-1">
+            <a href="/" className="flex items-center gap-2.5 mb-4 group">
+              <div className="w-9 h-9 bg-[#E8315A] rounded-xl flex items-center justify-center
+                              group-hover:bg-[#C41E45] transition-colors">
+                <span className="text-white text-lg">🎟</span>
+              </div>
+              <span className="text-lg font-bold text-white tracking-tight">
+                Ticket<span className="text-[#E8315A]">Mint</span>
+              </span>
+            </a>
+            <p className="text-sm text-white/50 leading-relaxed mb-4">
+              The smarter way to buy, sell, and resell event tickets. Verified and instant.
+            </p>
+            {/* Social placeholders */}
+            <div className="flex gap-3">
+              {["𝕏", "📸", "▶"].map((icon, i) => (
+                <div key={i} className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center
+                                        text-white/60 text-sm hover:bg-white/20 hover:text-white
+                                        transition-colors cursor-pointer">
+                  {icon}
+                </div>
+              ))}
             </div>
-            <span className="font-bold text-[#0F172A]">
-              Ticket<span className="text-[#E8315A]">Mint</span>
-            </span>
           </div>
 
-          <p className="text-sm text-[#64748B] text-center">
-            © {new Date().getFullYear()} TicketMint. All tickets are verified &amp; guaranteed.
-          </p>
+          {/* Marketplace */}
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Marketplace</h4>
+            <ul className="space-y-3">
+              {[
+                { href: "/",            label: "Browse Events" },
+                { href: "/list-ticket", label: "Sell Tickets" },
+                { href: "/my-tickets",  label: "My Tickets" },
+                { href: "/#how-it-works", label: "How It Works" },
+              ].map(({ href, label }) => (
+                <li key={href}>
+                  <a href={href} className="text-sm text-white/60 hover:text-white transition-colors">
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <div className="flex flex-wrap items-center gap-5 text-sm text-[#64748B] justify-center">
-            <a href="/guarantee" className="hover:text-[#E8315A] transition-colors">
-              Buyer Guarantee
-            </a>
-            <span className="text-[#CBD5E1]">|</span>
-            <a
-              href="https://solscan.io/?cluster=devnet"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-[#E8315A] transition-colors"
-            >
-              Verify a ticket ↗
-            </a>
-            <span className="text-[#CBD5E1]">|</span>
-            <span>Secured by blockchain</span>
+          {/* Support */}
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Support</h4>
+            <ul className="space-y-3">
+              {[
+                { href: "/guarantee", label: "Buyer Guarantee" },
+                { href: "/guarantee#faq", label: "FAQ" },
+                { href: "mailto:support@ticketmint.io", label: "Contact Us" },
+                { href: "https://solscan.io/?cluster=devnet", label: "Verify a Ticket ↗", external: true },
+              ].map(({ href, label, external }) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="text-sm text-white/60 hover:text-white transition-colors"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Trust */}
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Why TicketMint</h4>
+            <ul className="space-y-3">
+              {[
+                "100% Verified tickets",
+                "Blockchain-secured",
+                "Instant delivery",
+                "Money-back guarantee",
+                "No hidden fees",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm text-white/60">
+                  <span className="text-[#E8315A] text-xs">✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row
+                        items-center justify-between gap-3 text-xs text-white/40">
+          <p>© {year} TicketMint, Inc. All rights reserved.</p>
+          <div className="flex gap-5">
+            <a href="/guarantee" className="hover:text-white/70 transition-colors">Privacy</a>
+            <a href="/guarantee" className="hover:text-white/70 transition-colors">Terms</a>
+            <a href="/guarantee" className="hover:text-white/70 transition-colors">Sitemap</a>
           </div>
         </div>
       </div>
