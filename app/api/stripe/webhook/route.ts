@@ -4,15 +4,16 @@
 // Flow:
 //   1. Stripe calls this endpoint when checkout.session.completed fires
 //   2. We verify the signature (STRIPE_WEBHOOK_SECRET)
-//   3. Look up the pending stripe_session in Supabase
-//   4. Build + send the Anchor buy_ticket instruction on-chain
-//      using the platform keypair (server-side signer)
-//   5. Mark the session complete, update ticket status in Supabase
+//   3. Look up the pending stripe_session in Supabase (idempotency)
+//   4. Mark ticket as sold + send confirmation email
+//   5. Attempt on-chain NFT transfer if mintAddress is present (best-effort)
+//   6. Mark session complete
 //
 // Security note:
 //   - Only the platform server keypair signs on-chain txs here
 //   - Buyer wallet is stored in session metadata, passed to Anchor
 //   - Webhook is idempotent: duplicate events are no-ops
+//   - mintAddress is optional — NFT minting may not be configured yet
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -47,7 +48,6 @@ export async function POST(req: NextRequest) {
 
   // ── 2. Handle checkout.session.completed ──────────────────
   if (event.type !== "checkout.session.completed") {
-    // Acknowledge but ignore other events
     return NextResponse.json({ received: true });
   }
 
@@ -56,9 +56,11 @@ export async function POST(req: NextRequest) {
   const metadata = session.metadata ?? {};
   const { ticketId, buyerWallet, mintAddress, sellerWallet } = metadata;
 
-  if (!ticketId || !buyerWallet || !mintAddress || !sellerWallet) {
+  // ticketId and buyerWallet are the only truly required fields.
+  // mintAddress may be empty for demo tickets without on-chain NFT minting.
+  if (!ticketId || !buyerWallet) {
     console.error("[Webhook] Missing required metadata fields:", metadata);
-    return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
+    return NextResponse.json({ error: "Missing ticketId or buyerWallet" }, { status: 400 });
   }
 
   // ── 3. Idempotency check ──────────────────────────────────
@@ -87,74 +89,28 @@ export async function POST(req: NextRequest) {
       { onConflict: "stripe_session_id" }
     );
 
-  // ── 5. Execute on-chain buy_ticket via Anchor ─────────────
-  // The platform server keypair (PLATFORM_KEYPAIR_SECRET) signs as
-  // the fee wallet.  The actual SOL payment already happened via
-  // Stripe; on-chain we transfer the NFT from escrow to buyer.
-  //
-  // NOTE: In a real system you'd hold SOL in escrow separately.
-  // For this MVP: the platform pays the SOL on-chain from its wallet,
-  // having already collected the equivalent in fiat.
-  let txSig: string;
-  try {
-    txSig = await executeBuyTicket({
-      mintAddress,
-      buyerWallet,
-      sellerWallet,
-      ticketId,
-    });
-  } catch (err: any) {
-    console.error("[Webhook] on-chain buy_ticket failed:", err.message);
-
-    await supabaseService
-      .from("stripe_sessions")
-      .update({ status: "failed" })
-      .eq("stripe_session_id", stripeSessionId);
-
-    // Return 200 to prevent Stripe retries on a non-transient error
-    return NextResponse.json({ received: true, error: "On-chain transfer failed" });
-  }
-
-  // ── 6. Mark complete in Supabase ──────────────────────────
+  // ── 5. Mark ticket as sold in Supabase ────────────────────
   const now = new Date().toISOString();
 
-  await Promise.all([
-    // Session → complete
-    supabaseService
-      .from("stripe_sessions")
-      .update({ status: "complete", on_chain_tx: txSig, completed_at: now })
-      .eq("stripe_session_id", stripeSessionId),
+  await supabaseService
+    .from("tickets")
+    .update({
+      listing_status:        "sold",
+      owner_wallet:          buyerWallet,
+      stripe_session_id:     stripeSessionId,
+      stripe_payment_intent: session.payment_intent as string,
+      sold_at:               now,
+      ...(session.customer_details?.email
+        ? { buyer_email: session.customer_details.email }
+        : {}),
+    })
+    .eq("id", ticketId);
 
-    // Ticket → sold (also persist buyer email from Stripe session)
-    supabaseService
-      .from("tickets")
-      .update({
-        listing_status:        "sold",
-        owner_wallet:          buyerWallet,
-        stripe_session_id:     stripeSessionId,
-        stripe_payment_intent: session.payment_intent as string,
-        sold_at:               now,
-        ...(session.customer_details?.email
-          ? { buyer_email: session.customer_details.email }
-          : {}),
-      })
-      .eq("id", ticketId),
+  console.log(`[Webhook] Ticket ${ticketId} marked as sold.`);
 
-    // Transfer history entry
-    supabaseService.from("transfer_history").insert({
-      ticket_id:     ticketId,
-      mint_address:  mintAddress,
-      from_wallet:   sellerWallet,
-      to_wallet:     buyerWallet,
-      transfer_type: "buy",
-      tx_signature:  txSig,
-      transferred_at: now,
-    }),
-  ]);
-
-  console.log(`[Webhook] Ticket ${ticketId} sold. Tx: ${txSig}`);
-
-  // ── 7. Send purchase confirmation email ───────────────────
+  // ── 6. Send purchase confirmation email ───────────────────
+  // Runs before on-chain logic so the buyer always receives a receipt
+  // regardless of whether NFT minting is configured.
   const buyerEmail = session.customer_details?.email;
   if (buyerEmail) {
     try {
@@ -189,6 +145,47 @@ export async function POST(req: NextRequest) {
       console.error("[Webhook] Confirmation email failed:", emailErr.message);
     }
   }
+
+  // ── 7. Attempt on-chain NFT transfer (best-effort) ────────
+  // Skipped if mintAddress is absent (demo tickets / NFT not yet deployed).
+  let txSig: string | null = null;
+  if (mintAddress && sellerWallet) {
+    try {
+      txSig = await executeBuyTicket({
+        mintAddress,
+        buyerWallet,
+        sellerWallet,
+        ticketId,
+      });
+      console.log(`[Webhook] On-chain transfer complete. Tx: ${txSig}`);
+
+      // Record transfer history only when we have a real on-chain tx
+      await supabaseService.from("transfer_history").insert({
+        ticket_id:      ticketId,
+        mint_address:   mintAddress,
+        from_wallet:    sellerWallet,
+        to_wallet:      buyerWallet,
+        transfer_type:  "buy",
+        tx_signature:   txSig,
+        transferred_at: now,
+      });
+    } catch (err: any) {
+      console.error("[Webhook] On-chain buy_ticket failed (non-fatal):", err.message);
+      // Don't return early — ticket is already sold in DB and email is sent
+    }
+  } else {
+    console.log("[Webhook] mintAddress not set — skipping on-chain NFT transfer.");
+  }
+
+  // ── 8. Mark session complete ──────────────────────────────
+  await supabaseService
+    .from("stripe_sessions")
+    .update({
+      status:       "complete",
+      completed_at: now,
+      ...(txSig ? { on_chain_tx: txSig } : {}),
+    })
+    .eq("stripe_session_id", stripeSessionId);
 
   return NextResponse.json({ received: true, txSig });
 }
