@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
     // NOTE: Apple Pay & Google Pay are enabled automatically in Stripe Checkout
     // when the domain is verified in Stripe Dashboard → Settings → Payment Methods → Apple Pay.
     const session = await stripe.checkout.sessions.create({
-      automatic_payment_methods: { enabled: true },
       // Prefill the email field on the Stripe-hosted page
       ...(buyerEmail ? { customer_email: buyerEmail } : {}),
       line_items: [
