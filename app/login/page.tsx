@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Metadata } from "next";
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState("");
