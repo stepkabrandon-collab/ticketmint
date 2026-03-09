@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       .update({ status: "complete", on_chain_tx: txSig, completed_at: now })
       .eq("stripe_session_id", stripeSessionId),
 
-    // Ticket → sold
+    // Ticket → sold (also persist buyer email from Stripe session)
     supabaseService
       .from("tickets")
       .update({
@@ -134,6 +134,9 @@ export async function POST(req: NextRequest) {
         stripe_session_id:     stripeSessionId,
         stripe_payment_intent: session.payment_intent as string,
         sold_at:               now,
+        ...(session.customer_details?.email
+          ? { buyer_email: session.customer_details.email }
+          : {}),
       })
       .eq("id", ticketId),
 

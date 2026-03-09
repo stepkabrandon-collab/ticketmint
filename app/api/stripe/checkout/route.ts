@@ -21,7 +21,7 @@ function baseUrl(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { ticketId, buyerWallet } = await req.json();
+    const { ticketId, buyerWallet, buyerEmail } = await req.json();
 
     if (!ticketId || !buyerWallet) {
       return NextResponse.json({ error: "Missing ticketId or buyerWallet" }, { status: 400 });
@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
     // webhook after payment is confirmed.
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      // Prefill the email field on the Stripe-hosted page
+      ...(buyerEmail ? { customer_email: buyerEmail } : {}),
       line_items: [
         {
           price_data: {
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
         stripe_session_id: session.id,
         ticket_id:         ticket.id,
         buyer_wallet:      buyerWallet,
+        buyer_email:       buyerEmail ?? null,
         amount_usd_cents:  usdCents,
         status:            "pending",
       });
@@ -103,10 +106,13 @@ export async function POST(req: NextRequest) {
       console.error("[Checkout] stripe_sessions insert error:", sessionInsertError.message);
     }
 
-    // Link session to ticket for tracking
+    // Link session to ticket; also cache buyer email for webhook use
     await supabaseService
       .from("tickets")
-      .update({ stripe_session_id: session.id })
+      .update({
+        stripe_session_id: session.id,
+        ...(buyerEmail ? { buyer_email: buyerEmail } : {}),
+      })
       .eq("id", ticketId);
 
     return NextResponse.json({ url: session.url });

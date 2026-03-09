@@ -48,6 +48,7 @@ create table if not exists public.tickets (
                      check (listing_status in ('draft','listed','sold','cancelled')),
   stripe_session_id text,                      -- Stripe Checkout session tracking
   stripe_payment_intent text,
+  buyer_email      text,                       -- collected before Stripe checkout
   listed_at        timestamptz,
   sold_at          timestamptz,
   created_at       timestamptz not null default now(),
@@ -76,6 +77,7 @@ create table if not exists public.stripe_sessions (
   stripe_session_id    text not null unique,
   ticket_id            uuid not null references public.tickets(id),
   buyer_wallet         text not null,
+  buyer_email          text,                   -- collected in UI before Stripe redirect
   amount_usd_cents     bigint not null,
   status               text not null default 'pending'
                          check (status in ('pending','complete','expired','failed')),
@@ -166,3 +168,13 @@ create policy "stripe_sessions_service_only"
   on public.stripe_sessions for all
   using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
+
+-- ── Migrations ────────────────────────────────────────────────
+-- Run these in the Supabase SQL editor if the tables already exist
+-- (i.e. you ran the original schema before these columns were added).
+
+alter table public.tickets
+  add column if not exists buyer_email text;
+
+alter table public.stripe_sessions
+  add column if not exists buyer_email text;
