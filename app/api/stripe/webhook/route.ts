@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import QRCode from "qrcode";
 import { stripe } from "@/lib/stripe";
 import { supabaseService } from "@/lib/supabase";
 import { executeBuyTicket } from "@/lib/solana-server";
@@ -108,6 +109,31 @@ export async function POST(req: NextRequest) {
 
   console.log(`[Webhook] Ticket ${ticketId} marked as sold.`);
 
+  // ── 5b. Generate and store QR code ────────────────────────
+  const orderNumber = stripeSessionId.slice(-12).toUpperCase();
+  const appUrl      = process.env.NEXT_PUBLIC_APP_URL ?? "https://ticketmint.vercel.app";
+  try {
+    const { data: tData } = await supabaseService
+      .from("tickets")
+      .select("seat_section, seat_row, seat_number, events(name)")
+      .eq("id", ticketId).single();
+    if (tData) {
+      const evName  = (tData.events as any)?.name ?? "Event";
+      const seatStr = `Sec ${tData.seat_section} Row ${tData.seat_row} #${tData.seat_number}`;
+      const qrData  = JSON.stringify({
+        ticketId, eventName: evName, seatInfo: seatStr, orderNumber,
+        buyerEmail: session.customer_details?.email ?? "",
+        verifyUrl: `${appUrl}/validate/${ticketId}`,
+      });
+      const qrDataUrl = await QRCode.toDataURL(qrData, {
+        width: 300, margin: 2, color: { dark: "#0F172A", light: "#FFFFFF" }, errorCorrectionLevel: "H",
+      });
+      await supabaseService.from("tickets").update({ qr_code: qrDataUrl }).eq("id", ticketId);
+    }
+  } catch (qrErr: any) {
+    console.error("[Webhook] QR generation failed (non-fatal):", qrErr.message);
+  }
+
   // ── 6. Send purchase confirmation email ───────────────────
   // Runs before on-chain logic so the buyer always receives a receipt
   // regardless of whether NFT minting is configured.
@@ -136,8 +162,9 @@ export async function POST(req: NextRequest) {
           seatNumber:  ticketData.seat_number,
           quantity:    1,
           totalUsd:    ((session.amount_total ?? 0) / 100).toFixed(2),
-          orderNumber: stripeSessionId.slice(-12).toUpperCase(),
-          appUrl:      process.env.NEXT_PUBLIC_APP_URL ?? "https://ticketmint.vercel.app",
+          orderNumber,
+          appUrl:      appUrl,
+          ticketId:    ticketId,
         });
       }
     } catch (emailErr: any) {

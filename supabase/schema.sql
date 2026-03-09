@@ -206,3 +206,14 @@ alter table public.tickets
 
 alter table public.stripe_sessions
   add column if not exists buyer_email text;
+
+-- Feature 3: Digital QR code stored per ticket
+alter table public.tickets
+  add column if not exists qr_code text;
+
+-- Feature 4: Price alert tracking on watchlist
+alter table public.watchlist
+  add column if not exists user_email text;
+
+alter table public.watchlist
+  add column if not exists alerted_at timestamptz;

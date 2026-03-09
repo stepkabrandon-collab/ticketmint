@@ -7,18 +7,19 @@
 import { Resend } from "resend";
 
 export interface PurchaseConfirmationData {
-  to:          string;   // buyer email from Stripe session.customer_details.email
+  to:          string;
   eventName:   string;
   venue:       string;
   city:        string;
-  eventDate:   string;   // ISO string — formatted inside this function
+  eventDate:   string;
   seatSection: string;
   seatRow:     string;
   seatNumber:  string;
   quantity:    number;
-  totalUsd:    string;   // e.g. "37.50"
-  orderNumber: string;   // short display ID, e.g. last 12 chars of Stripe session ID
-  appUrl:      string;   // NEXT_PUBLIC_APP_URL
+  totalUsd:    string;
+  orderNumber: string;
+  appUrl:      string;
+  ticketId?:   string;   // used to build QR + verify URL in email
 }
 
 // ── HTML builder ──────────────────────────────────────────────
@@ -127,6 +128,20 @@ function buildHtml(d: PurchaseConfirmationData): string {
                   </td>
                 </tr>
               </table>
+
+              <!-- QR Code -->
+              ${d.ticketId ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;">Your Entry QR Code</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(JSON.stringify({ ticketId: d.ticketId, orderNumber: d.orderNumber, verifyUrl: d.appUrl + '/validate/' + d.ticketId }))}&bgcolor=ffffff&color=0f172a&format=png&ecc=H"
+                         width="160" height="160" alt="Ticket QR Code"
+                         style="border:1px solid #E2E8F0;border-radius:12px;padding:8px;background:#fff;" />
+                    <p style="margin:8px 0 0;font-size:12px;color:#94A3B8;">Show at venue entrance</p>
+                  </td>
+                </tr>
+              </table>` : ""}
 
               <!-- Note -->
               <p style="margin:0;font-size:13px;color:#94A3B8;text-align:center;line-height:1.6;">

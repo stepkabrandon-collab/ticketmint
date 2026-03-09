@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { toast } from "sonner";
 
 export function WatchButton({ eventId }: { eventId: string }) {
@@ -11,9 +12,14 @@ export function WatchButton({ eventId }: { eventId: string }) {
   const [targetPrice,  setTargetPrice]  = useState("");
   const [loading,      setLoading]      = useState(false);
   const [checkDone,    setCheckDone]    = useState(false);
+  const [userEmail,    setUserEmail]    = useState<string | null>(null);
 
-  // Check initial watch state
+  // Check initial watch state + get auth email for alerts
   useEffect(() => {
+    const supabase = createClientComponentClient();
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user?.email ?? null);
+    });
     if (!connected || !publicKey) { setCheckDone(true); return; }
     fetch(`/api/watchlist?wallet=${publicKey.toBase58()}&eventId=${eventId}`)
       .then((r) => r.json())
@@ -45,7 +51,11 @@ export function WatchButton({ eventId }: { eventId: string }) {
       await fetch("/api/watchlist", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ wallet: publicKey.toBase58(), eventId, targetPrice: price }),
+        body:    JSON.stringify({
+          wallet: publicKey.toBase58(), eventId,
+          targetPrice: price,
+          userEmail: userEmail ?? undefined,
+        }),
       });
       setWatching(true);
       setShowInput(false);

@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { wallet, eventId, targetPrice } = await req.json();
+  const { wallet, eventId, targetPrice, userEmail } = await req.json();
 
   if (!wallet || !eventId) {
     return NextResponse.json({ error: "Missing wallet or eventId" }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
         user_wallet:  wallet,
         event_id:     eventId,
         target_price: targetPrice ?? null,
+        user_email:   userEmail   ?? null,
       },
       { onConflict: "user_wallet,event_id" }
     );
