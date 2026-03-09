@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${appBase}/marketplace/${ticketId}?payment=success`,
+      success_url: `${appBase}/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${appBase}/marketplace/${ticketId}?payment=cancelled`,
       metadata: {
         ticketId:     ticket.id,
