@@ -19,6 +19,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { supabaseService } from "@/lib/supabase";
 import { executeBuyTicket } from "@/lib/solana-server";
+import { sendPurchaseConfirmation } from "@/lib/emails/purchaseConfirmation";
 
 // Disable body parsing — Stripe requires raw body for signature verification
 export const runtime = "nodejs";
@@ -149,5 +150,42 @@ export async function POST(req: NextRequest) {
   ]);
 
   console.log(`[Webhook] Ticket ${ticketId} sold. Tx: ${txSig}`);
+
+  // ── 7. Send purchase confirmation email ───────────────────
+  const buyerEmail = session.customer_details?.email;
+  if (buyerEmail) {
+    try {
+      const { data: ticketData } = await supabaseService
+        .from("tickets")
+        .select(`
+          seat_section, seat_row, seat_number,
+          events ( name, venue, city, event_date )
+        `)
+        .eq("id", ticketId)
+        .single();
+
+      if (ticketData) {
+        const ev = ticketData.events as any;
+        await sendPurchaseConfirmation({
+          to:          buyerEmail,
+          eventName:   ev.name,
+          venue:       ev.venue,
+          city:        ev.city,
+          eventDate:   ev.event_date,
+          seatSection: ticketData.seat_section,
+          seatRow:     ticketData.seat_row,
+          seatNumber:  ticketData.seat_number,
+          quantity:    1,
+          totalUsd:    ((session.amount_total ?? 0) / 100).toFixed(2),
+          orderNumber: stripeSessionId.slice(-12).toUpperCase(),
+          appUrl:      process.env.NEXT_PUBLIC_APP_URL ?? "https://ticketmint.vercel.app",
+        });
+      }
+    } catch (emailErr: any) {
+      // Non-fatal — log but don't fail the webhook response
+      console.error("[Webhook] Confirmation email failed:", emailErr.message);
+    }
+  }
+
   return NextResponse.json({ received: true, txSig });
 }
