@@ -39,8 +39,9 @@ export default async function PurchaseSuccessPage({
   const eventName = dashIdx !== -1 ? ticketDesc.slice(0, dashIdx) : ticketDesc;
   const seatInfo  = dashIdx !== -1 ? ticketDesc.slice(dashIdx + 3) : "";
   const quantity  = lineItem?.quantity ?? 1;
-  const totalUsd  = ((session.amount_total ?? 0) / 100).toFixed(2);
-  const currency  = (session.currency ?? "usd").toUpperCase();
+  const totalUsd   = ((session.amount_total ?? 0) / 100).toFixed(2);
+  const currency   = (session.currency ?? "usd").toUpperCase();
+  const buyerEmail = session.customer_details?.email ?? null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
@@ -105,6 +106,14 @@ export default async function PurchaseSuccessPage({
           <p className="text-[11px] text-[#CBD5E1] font-mono break-all text-center">
             Order #{sessionId.slice(-12).toUpperCase()}
           </p>
+
+          {/* Confirmation email notice */}
+          {buyerEmail && (
+            <p className="text-xs text-[#94A3B8] text-center -mt-1">
+              Confirmation email sent to:{" "}
+              <span className="text-[#64748B] font-medium">{buyerEmail}</span>
+            </p>
+          )}
 
           {/* CTAs */}
           <div className="space-y-3 pt-2">

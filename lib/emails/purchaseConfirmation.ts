@@ -170,15 +170,19 @@ export async function sendPurchaseConfirmation(
 
   const resend = new Resend(apiKey);
 
-  const { error } = await resend.emails.send({
-    from:    "Ticket Mint <tickets@ticketmint.io>",
+  console.log("[Email] Attempting to send confirmation to:", data.to);
+
+  const result = await resend.emails.send({
+    from:    "Ticket Mint <onboarding@resend.dev>",
     to:      [data.to],
     subject: `Order Confirmed: ${data.eventName}`,
     html:    buildHtml(data),
   });
 
-  if (error) {
-    throw new Error(`Resend API error: ${error.message}`);
+  console.log("[Email] Resend response:", JSON.stringify(result));
+
+  if (result.error) {
+    throw new Error(`Resend API error: ${result.error.message}`);
   }
 
   console.log(`[Email] Confirmation sent to ${data.to} for order #${data.orderNumber}`);
