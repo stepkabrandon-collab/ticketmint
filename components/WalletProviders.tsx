@@ -16,7 +16,6 @@ import {
 } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { clusterApiUrl } from "@solana/web3.js";
 
 // Import wallet adapter CSS
@@ -72,8 +71,9 @@ export const WalletProviders: FC<{ children: ReactNode }> = ({ children }) => {
     [network]
   );
 
-  // Only Phantom for MVP; easy to add more wallets here
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+  // Empty array — Phantom (and other wallets) are auto-detected via the
+  // Wallet Standard. No explicit adapter import needed for 0.19.x+.
+  const wallets = useMemo(() => [], []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>

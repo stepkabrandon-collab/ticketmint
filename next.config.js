@@ -17,6 +17,15 @@ const nextConfig = {
         path:   require.resolve("path-browserify"),
       };
     }
+
+    // pino-pretty is an optional dep used by pino (pulled in by Supabase).
+    // It's never actually needed at runtime — ignore it to prevent build errors.
+    config.plugins.push(
+      new (require("webpack").IgnorePlugin)({
+        resourceRegExp: /^pino-pretty$/,
+      })
+    );
+
     return config;
   },
 
