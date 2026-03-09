@@ -19,7 +19,7 @@ function colorForName(name: string) {
   return EVENT_COLORS[hash % EVENT_COLORS.length];
 }
 
-export function TicketCard({ ticket }: { ticket: TicketWithEvent }) {
+export function TicketCard({ ticket, isBestValue }: { ticket: TicketWithEvent; isBestValue?: boolean }) {
   const ev = ticket.events;
   const solPrice = lamportsToSol(ticket.price_lamports);
   const color = colorForName(ev.name);
@@ -84,6 +84,13 @@ export function TicketCard({ ticket }: { ticket: TicketWithEvent }) {
           {/* Price + CTA */}
           <div className="flex items-center justify-between">
             <div>
+              {isBestValue && (
+                <span className="inline-block text-[10px] font-bold uppercase tracking-wide
+                                 bg-[#FFF7ED] text-[#EA580C] border border-[#FED7AA]
+                                 px-2 py-0.5 rounded-full mb-1">
+                  ⭐ Best Value
+                </span>
+              )}
               <div className="text-xl font-extrabold text-[#0F172A]">
                 ${(solPrice * 150).toFixed(0)}
               </div>

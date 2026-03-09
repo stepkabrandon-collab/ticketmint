@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase";
 import { BuyTicketButton } from "@/components/BuyTicketButton";
 import { QRTicket } from "@/components/QRTicket";
+import { GuaranteeBanner } from "@/components/GuaranteeBanner";
+import { WatchButton } from "@/components/WatchButton";
 import { lamportsToSol, shortenAddress } from "@/lib/utils";
 
 export const revalidate = 30;
@@ -11,12 +13,39 @@ export const revalidate = 30;
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const { data } = await supabaseServer
     .from("tickets")
-    .select("seat_section, seat_row, seat_number, events(name)")
+    .select("seat_section, seat_row, seat_number, price_lamports, events(name, venue, city, event_date)")
     .eq("id", params.id)
     .single();
+
   if (!data) return { title: "Ticket Not Found" };
-  const ev = (data.events as any)?.name ?? "Event";
-  return { title: `${ev} — Sec ${data.seat_section} Row ${data.seat_row} #${data.seat_number}` };
+
+  const ev        = data.events as any;
+  const eventName = ev?.name ?? "Event";
+  const venue     = ev?.venue ?? "";
+  const city      = ev?.city ?? "";
+  const date      = ev?.event_date
+    ? new Date(ev.event_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "";
+  const priceUsd  = `$${Math.round((data.price_lamports / 1_000_000_000) * 150)}`;
+
+  const title       = `${eventName} Tickets — ${city}, ${venue} | Ticket Mint`;
+  const description = `Buy ${eventName} tickets for ${date} at ${venue} in ${city}. 100% verified tickets with buyer guarantee. Starting from ${priceUsd}.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type:    "website",
+      siteName: "Ticket Mint",
+    },
+    twitter: {
+      card:        "summary",
+      title,
+      description,
+    },
+  };
 }
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
@@ -146,6 +175,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 eventName={event.name}
               />
             )}
+
+            {/* Watch this event */}
+            <div className="pt-2">
+              <WatchButton eventId={event.id} />
+            </div>
+
+            {/* Buyer guarantee */}
+            <GuaranteeBanner />
 
             {isSold && (
               <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-4 text-center">

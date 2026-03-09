@@ -115,17 +115,27 @@ const FEATURED_EVENTS = [
   },
 ];
 
+const SOL_TO_USD = 150;
+const LAMPORTS_PER_SOL = 1_000_000_000;
+
 export default async function HomePage({
   searchParams,
 }: {
   searchParams: {
-    q?: string;
+    q?:        string;
     category?: string;
     minPrice?: string;
     maxPrice?: string;
-    section?: string;
+    section?:  string;
+    sort?:     string;
+    dateFrom?: string;
+    dateTo?:   string;
+    qty?:      string;
   };
 }) {
+  const sort = searchParams.sort ?? "newest";
+  const qty  = parseInt(searchParams.qty ?? "1", 10);
+
   // ── Build Supabase query ──────────────────────────────────────
   let query = supabaseServer
     .from("tickets")
@@ -135,25 +145,26 @@ export default async function HomePage({
       price_lamports, listing_status, listed_at,
       events ( id, name, venue, city, event_date, image_url )
     `)
-    .eq("listing_status", "listed")
-    .order("listed_at", { ascending: false });
+    .eq("listing_status", "listed");
 
-  // Text search: find matching event IDs first, then filter tickets
+  // Sorting
+  if (sort === "price_asc")  query = query.order("price_lamports", { ascending: true });
+  else if (sort === "price_desc") query = query.order("price_lamports", { ascending: false });
+  else query = query.order("listed_at", { ascending: false }); // newest / date_asc sorted in JS
+
+  // Text search
   if (searchParams.q) {
     const { data: matchingEvents } = await supabaseServer
       .from("events")
       .select("id")
       .ilike("name", `%${searchParams.q}%`);
     const ids = matchingEvents?.map((e) => e.id) ?? [];
-    // If no matching events, return empty result set
-    if (ids.length === 0) {
-      query = query.eq("event_id", "00000000-0000-0000-0000-000000000000");
-    } else {
-      query = query.in("event_id", ids);
-    }
+    query = ids.length === 0
+      ? query.eq("event_id", "00000000-0000-0000-0000-000000000000")
+      : query.in("event_id", ids);
   }
 
-  // Category filter: match event names against keyword list
+  // Category filter
   if (searchParams.category && searchParams.category !== "all") {
     const keywords = CATEGORY_KEYWORDS[searchParams.category] ?? [];
     if (keywords.length > 0) {
@@ -162,29 +173,72 @@ export default async function HomePage({
         .select("id")
         .or(keywords.map((k) => `name.ilike.%${k}%`).join(","));
       const ids = catEvents?.map((e) => e.id) ?? [];
-      if (ids.length === 0) {
-        query = query.eq("event_id", "00000000-0000-0000-0000-000000000000");
-      } else {
-        query = query.in("event_id", ids);
-      }
+      query = ids.length === 0
+        ? query.eq("event_id", "00000000-0000-0000-0000-000000000000")
+        : query.in("event_id", ids);
     }
   }
 
+  // Date range filter — match events within range
+  if (searchParams.dateFrom || searchParams.dateTo) {
+    let dateQ = supabaseServer.from("events").select("id");
+    if (searchParams.dateFrom) dateQ = dateQ.gte("event_date", searchParams.dateFrom);
+    if (searchParams.dateTo)   dateQ = dateQ.lte("event_date", searchParams.dateTo + "T23:59:59Z");
+    const { data: dateEvents } = await dateQ;
+    const ids = dateEvents?.map((e) => e.id) ?? [];
+    query = ids.length === 0
+      ? query.eq("event_id", "00000000-0000-0000-0000-000000000000")
+      : query.in("event_id", ids);
+  }
+
+  // Price filter (USD → lamports: USD / 150 * 1e9)
+  const lamportsPerDollar = LAMPORTS_PER_SOL / SOL_TO_USD;
   if (searchParams.minPrice)
-    query = query.gte("price_lamports", Number(searchParams.minPrice) * 1_000_000);
+    query = query.gte("price_lamports", Math.round(Number(searchParams.minPrice) * lamportsPerDollar));
   if (searchParams.maxPrice)
-    query = query.lte("price_lamports", Number(searchParams.maxPrice) * 1_000_000);
+    query = query.lte("price_lamports", Math.round(Number(searchParams.maxPrice) * lamportsPerDollar));
   if (searchParams.section)
     query = query.ilike("seat_section", `%${searchParams.section}%`);
 
   const { data: tickets, error } = await query;
   if (error) console.error("[HomePage] Supabase error:", error.message);
 
-  const typedTickets = (tickets ?? []) as unknown as TicketWithEvent[];
+  let typedTickets = (tickets ?? []) as unknown as TicketWithEvent[];
+
+  // Date sort — JS post-process (can't order by related table column in PostgREST)
+  if (sort === "date_asc") {
+    typedTickets = [...typedTickets].sort(
+      (a, b) => new Date(a.events.event_date).getTime() - new Date(b.events.event_date).getTime()
+    );
+  }
+
+  // Quantity filter — only show events that have qty+ tickets available
+  if (qty > 1) {
+    const eventCount = new Map<string, number>();
+    for (const t of typedTickets) {
+      eventCount.set(t.events.id, (eventCount.get(t.events.id) ?? 0) + 1);
+    }
+    typedTickets = typedTickets.filter((t) => (eventCount.get(t.events.id) ?? 0) >= qty);
+  }
+
+  // Best value — cheapest ticket per event
+  const eventMinPrice = new Map<string, number>();
+  for (const t of typedTickets) {
+    const cur = eventMinPrice.get(t.events.id);
+    if (cur === undefined || t.price_lamports < cur) {
+      eventMinPrice.set(t.events.id, t.price_lamports);
+    }
+  }
+  const bestValueIds = new Set(
+    typedTickets
+      .filter((t) => t.price_lamports === eventMinPrice.get(t.events.id))
+      .map((t) => t.id)
+  );
 
   const hasActiveFilter =
     searchParams.q || searchParams.category || searchParams.minPrice ||
-    searchParams.maxPrice || searchParams.section;
+    searchParams.maxPrice || searchParams.section || searchParams.dateFrom ||
+    searchParams.dateTo || (qty > 1);
 
   return (
     <div>
@@ -324,7 +378,7 @@ export default async function HomePage({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {typedTickets.map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} />
+                <TicketCard key={ticket.id} ticket={ticket} isBestValue={bestValueIds.has(ticket.id)} />
               ))}
             </div>
           )}

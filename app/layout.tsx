@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { WalletProviders } from "@/components/WalletProviders";
-import dynamic from "next/dynamic";
+import { Navbar } from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -56,57 +56,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 
-// ── Navbar ────────────────────────────────────────────────────
-function Navbar() {
-  return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-[#E2E8F0]"
-         style={{ boxShadow: "0 1px 3px rgba(15,23,42,0.06)" }}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 bg-[#E8315A] rounded-lg flex items-center justify-center flex-shrink-0
-                          group-hover:bg-[#C41E45] transition-colors">
-            <span className="text-white text-base leading-none">🎟</span>
-          </div>
-          <span className="text-lg font-bold text-[#0F172A] tracking-tight">
-            Ticket<span className="text-[#E8315A]">Mint</span>
-          </span>
-        </a>
-
-        {/* Nav links */}
-        <div className="hidden sm:flex items-center gap-1 text-sm font-medium">
-          {[
-            { href: "/",            label: "Browse" },
-            { href: "/my-tickets",  label: "My Tickets" },
-            { href: "/list-ticket", label: "Sell Tickets" },
-          ].map(({ href, label }) => (
-            <a
-              key={href}
-              href={href}
-              className="px-4 py-2 rounded-lg text-[#334155] hover:text-[#0F172A] hover:bg-[#F8F9FA] transition-colors"
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-
-        {/* Wallet button */}
-        <NavWallet />
-      </div>
-    </nav>
-  );
-}
-
-const NavWallet = dynamic(
-  () => import("@/components/WalletButton").then((m) => m.WalletButton),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-9 w-36 rounded-lg bg-[#F1F5F9] animate-pulse" />
-    ),
-  }
-);
-
 // ── Footer ────────────────────────────────────────────────────
 function Footer() {
   return (
@@ -127,7 +76,11 @@ function Footer() {
             © {new Date().getFullYear()} TicketMint. All tickets are verified &amp; guaranteed.
           </p>
 
-          <div className="flex items-center gap-5 text-sm text-[#64748B]">
+          <div className="flex flex-wrap items-center gap-5 text-sm text-[#64748B] justify-center">
+            <a href="/guarantee" className="hover:text-[#E8315A] transition-colors">
+              Buyer Guarantee
+            </a>
+            <span className="text-[#CBD5E1]">|</span>
             <a
               href="https://solscan.io/?cluster=devnet"
               target="_blank"

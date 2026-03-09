@@ -169,6 +169,34 @@ create policy "stripe_sessions_service_only"
   using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
+-- ── watchlist ────────────────────────────────────────────────
+-- Fans can watch events and set a target price alert.
+create table if not exists public.watchlist (
+  id            uuid primary key default uuid_generate_v4(),
+  user_wallet   text not null,
+  event_id      uuid not null references public.events(id) on delete cascade,
+  target_price  integer,               -- USD cents; null = any price
+  created_at    timestamptz not null default now(),
+  unique (user_wallet, event_id)
+);
+
+create index if not exists idx_watchlist_wallet   on public.watchlist(user_wallet);
+create index if not exists idx_watchlist_event_id on public.watchlist(event_id);
+
+alter table public.watchlist enable row level security;
+
+-- Watchlist: public reads, service role writes (API routes use service key)
+create policy "watchlist_select_all"
+  on public.watchlist for select using (true);
+
+create policy "watchlist_insert_service"
+  on public.watchlist for insert
+  with check (auth.role() = 'service_role');
+
+create policy "watchlist_delete_service"
+  on public.watchlist for delete
+  using (auth.role() = 'service_role');
+
 -- ── Migrations ────────────────────────────────────────────────
 -- Run these in the Supabase SQL editor if the tables already exist
 -- (i.e. you ran the original schema before these columns were added).
