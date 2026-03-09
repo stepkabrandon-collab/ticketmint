@@ -79,6 +79,8 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
+      billing_address_collection: "auto",
+      phone_number_collection: { enabled: false },
       success_url: `${appBase}/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${appBase}/marketplace/${ticketId}?payment=cancelled`,
       metadata: {
