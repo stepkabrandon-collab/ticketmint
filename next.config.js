@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Tell Next.js not to bundle these server-side — require() them at runtime.
+  // Prevents webpack from crawling Solana/Anchor's transitive deps during build.
+  serverExternalPackages: [
+    "@coral-xyz/anchor",
+    "@solana/web3.js",
+    "@solana/spl-token",
+    "@metaplex-foundation/umi",
+    "@metaplex-foundation/mpl-token-metadata",
+    "@metaplex-foundation/umi-bundle-defaults",
+  ],
+
   // Required for Solana/Anchor browser compatibility
   webpack: (config, { isServer }) => {
     if (!isServer) {

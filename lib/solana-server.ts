@@ -10,8 +10,7 @@ import {
   clusterApiUrl,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider, BN, web3 } from "@coral-xyz/anchor";
+import { Program, AnchorProvider, web3 } from "@coral-xyz/anchor";
 import {
   getAssociatedTokenAddressSync,
   TOKEN_PROGRAM_ID,
@@ -82,9 +81,30 @@ export async function executeBuyTicket(params: {
   const seller          = new PublicKey(sellerWallet);
   const buyer           = new PublicKey(buyerWallet);
 
-  // Build AnchorProvider with platform keypair
-  const wallet = new anchor.Wallet(platformKeypair);
-  const provider = new AnchorProvider(connection, wallet, {
+  // Build a minimal wallet shim from the keypair — avoids importing
+  // anchor.Wallet which pulls in @solana/wallet-adapter-wallets at build time.
+  const wallet = {
+    publicKey: platformKeypair.publicKey,
+    signTransaction: async <T extends web3.Transaction | web3.VersionedTransaction>(tx: T): Promise<T> => {
+      if (tx instanceof web3.Transaction) {
+        tx.partialSign(platformKeypair);
+      } else {
+        (tx as web3.VersionedTransaction).sign([platformKeypair]);
+      }
+      return tx;
+    },
+    signAllTransactions: async <T extends web3.Transaction | web3.VersionedTransaction>(txs: T[]): Promise<T[]> => {
+      for (const tx of txs) {
+        if (tx instanceof web3.Transaction) {
+          tx.partialSign(platformKeypair);
+        } else {
+          (tx as web3.VersionedTransaction).sign([platformKeypair]);
+        }
+      }
+      return txs;
+    },
+  };
+  const provider = new AnchorProvider(connection, wallet as any, {
     commitment: "confirmed",
   });
   const program = new Program(IDL as any, PROGRAM_ID, provider);
