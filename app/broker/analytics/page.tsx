@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -22,7 +22,7 @@ export default function BrokerAnalyticsPage() {
   const [tickets, setTickets]   = useState<SoldTicket[]>([]);
   const [loading, setLoading]   = useState(true);
 
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
   const load = useCallback(async () => {
     if (!publicKey) { setLoading(false); return; }
@@ -33,7 +33,7 @@ export default function BrokerAnalyticsPage() {
       .eq("seller_wallet", publicKey.toBase58())
       .eq("listing_status", "sold")
       .order("sold_at", { ascending: true });
-    setTickets((data ?? []) as SoldTicket[]);
+    setTickets((data ?? []) as unknown as SoldTicket[]);
     setLoading(false);
   }, [publicKey, supabase]);
 
@@ -121,7 +121,7 @@ export default function BrokerAnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} angle={-35} textAnchor="end" />
                     <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip formatter={(v: number) => [`$${v.toFixed(0)}`, "Revenue"]} />
+                    <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(0)}`, "Revenue"]} />
                     <Bar dataKey="revenue" fill="#E8315A" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -137,7 +137,7 @@ export default function BrokerAnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                       <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748B" }} />
                       <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickFormatter={(v) => `$${v}`} />
-                      <Tooltip formatter={(v: number) => [`$${v}`, "Revenue"]} />
+                      <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(0)}`, "Revenue"]} />
                       <Bar dataKey="revenue" fill="#7C3AED" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

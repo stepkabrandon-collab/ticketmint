@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 import { lamportsToSol } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export default function BrokerPage() {
   const [uploading, setUploading] = useState(false);
   const [result,   setResult]   = useState<UploadResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
@@ -49,7 +49,7 @@ export default function BrokerPage() {
                events ( name, venue, event_date )`)
       .eq("seller_wallet", publicKey!.toBase58())
       .order("listed_at", { ascending: false });
-    setTickets((data ?? []) as BrokerTicket[]);
+    setTickets((data ?? []) as unknown as BrokerTicket[]);
     setLoading(false);
   }, [connected, publicKey, supabase]);
 
