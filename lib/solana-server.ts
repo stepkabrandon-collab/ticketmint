@@ -27,15 +27,19 @@ import IDL from "./idl/ticket_mint_marketplace.json";
 const RPC_ENDPOINT =
   process.env.NEXT_PUBLIC_RPC_ENDPOINT ?? clusterApiUrl("devnet");
 
-const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID ??
-  "TMktXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-);
+// Deferred so Next.js doesn't call new PublicKey() with placeholder
+// strings at build time — only resolved when the functions are actually called.
+function getProgramId(): PublicKey {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_PROGRAM_ID ?? PublicKey.default.toBase58()
+  );
+}
 
-const PLATFORM_FEE_WALLET = new PublicKey(
-  process.env.NEXT_PUBLIC_PLATFORM_FEE_WALLET ??
-  "FEEwXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-);
+function getPlatformFeeWallet(): PublicKey {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_PLATFORM_FEE_WALLET ?? PublicKey.default.toBase58()
+  );
+}
 
 // ── Platform keypair ──────────────────────────────────────────
 // Loaded from PLATFORM_KEYPAIR_SECRET env var.
@@ -75,8 +79,10 @@ export async function executeBuyTicket(params: {
 }): Promise<string> {
   const { mintAddress, buyerWallet, sellerWallet } = params;
 
-  const connection     = getConnection();
+  const connection      = getConnection();
   const platformKeypair = loadPlatformKeypair();
+  const PROGRAM_ID      = getProgramId();
+  const PLATFORM_FEE_WALLET = getPlatformFeeWallet();
   const mint            = new PublicKey(mintAddress);
   const seller          = new PublicKey(sellerWallet);
   const buyer           = new PublicKey(buyerWallet);
@@ -107,7 +113,7 @@ export async function executeBuyTicket(params: {
   const provider = new AnchorProvider(connection, wallet as any, {
     commitment: "confirmed",
   });
-  const program = new Program(IDL as any, PROGRAM_ID, provider);
+  const program = new Program(IDL as any, provider);
 
   // Derive listing PDA
   const [listingPDA] = PublicKey.findProgramAddressSync(
@@ -120,13 +126,13 @@ export async function executeBuyTicket(params: {
   const buyerATA  = getAssociatedTokenAddressSync(mint, buyer);
 
   // Fetch listing to get royalty_recipient
-  const listingAccount = await program.account.listingAccount.fetch(listingPDA);
+  const listingAccount = await (program.account as any).listingAccount.fetch(listingPDA);
   const royaltyRecipient = (listingAccount as any).royaltyRecipient as PublicKey;
 
   // Execute buy_ticket instruction
   // The platform keypair signs (it's paying the Solana tx fees)
   // The SOL distribution happens inside the Anchor instruction
-  const txSig = await program.methods
+  const txSig = await (program as any).methods
     .buyTicket()
     .accounts({
       buyer:              buyer,

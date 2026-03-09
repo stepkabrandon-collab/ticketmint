@@ -13,10 +13,8 @@ import {
   Transaction,
   clusterApiUrl,
 } from "@solana/web3.js";
-import {
-  createUmi,
-  type Umi,
-} from "@metaplex-foundation/umi";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { type Umi } from "@metaplex-foundation/umi";
 import { walletAdapterIdentity } from "@metaplex-foundation/umi-signer-wallet-adapters";
 import { mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
 import {
@@ -40,16 +38,19 @@ import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
 // In production, import the generated IDL from target/idl/
 import IDL from "./idl/ticket_mint_marketplace.json";
 
-// ── Constants ─────────────────────────────────────────────────
-const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID ??
-  "TMktXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-);
+// Deferred — avoids calling new PublicKey() with placeholder strings at
+// module load time (which would throw during Next.js build page collection).
+function getProgramId(): PublicKey {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_PROGRAM_ID ?? PublicKey.default.toBase58()
+  );
+}
 
-const PLATFORM_FEE_WALLET = new PublicKey(
-  process.env.NEXT_PUBLIC_PLATFORM_FEE_WALLET ??
-  "FEEwXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-);
+function getPlatformFeeWallet(): PublicKey {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_PLATFORM_FEE_WALLET ?? PublicKey.default.toBase58()
+  );
+}
 
 const RPC_ENDPOINT =
   process.env.NEXT_PUBLIC_RPC_ENDPOINT ?? clusterApiUrl("devnet");
@@ -207,12 +208,12 @@ export async function listTicketOnChain(params: ListTicketParams): Promise<strin
     walletAdapter as any,
     { commitment: "confirmed" }
   );
-  const program = new Program(IDL as any, PROGRAM_ID, provider);
+  const program = new Program(IDL as any, provider);
 
   // Derive PDA seeds: ["listing", mint, seller]
   const [listingPDA] = PublicKey.findProgramAddressSync(
     [Buffer.from("listing"), mint.toBuffer(), seller.toBuffer()],
-    PROGRAM_ID
+    getProgramId()
   );
 
   // The escrow ATA is the associated token account owned by the listing PDA
@@ -220,7 +221,7 @@ export async function listTicketOnChain(params: ListTicketParams): Promise<strin
   const sellerATA = getAssociatedTokenAddressSync(mint, seller);
   const escrowATA = getAssociatedTokenAddressSync(mint, listingPDA, true);
 
-  const tx = await program.methods
+  const tx = await (program as any).methods
     .listTicket(new BN(priceLamports), royalty)
     .accounts({
       seller:              seller,
@@ -262,18 +263,18 @@ export async function cancelListingOnChain(params: {
   const provider = new AnchorProvider(connection, walletAdapter as any, {
     commitment: "confirmed",
   });
-  const program = new Program(IDL as any, PROGRAM_ID, provider);
+  const program = new Program(IDL as any, provider);
 
   const [listingPDA] = PublicKey.findProgramAddressSync(
     [Buffer.from("listing"), mint.toBuffer(), seller.toBuffer()],
-    PROGRAM_ID
+    getProgramId()
   );
 
   const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
   const sellerATA = getAssociatedTokenAddressSync(mint, seller);
   const escrowATA = getAssociatedTokenAddressSync(mint, listingPDA, true);
 
-  const tx = await program.methods
+  const tx = await (program as any).methods
     .cancelListing()
     .accounts({
       seller:              seller,
